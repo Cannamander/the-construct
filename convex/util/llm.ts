@@ -4,7 +4,7 @@ const OPENAI_EMBEDDING_DIMENSION = 1536;
 const TOGETHER_EMBEDDING_DIMENSION = 768;
 const OLLAMA_EMBEDDING_DIMENSION = 1024;
 
-export const EMBEDDING_DIMENSION: number = OLLAMA_EMBEDDING_DIMENSION;
+export const EMBEDDING_DIMENSION: number = OPENAI_EMBEDDING_DIMENSION;
 
 export function detectMismatchedLLMProvider() {
   switch (EMBEDDING_DIMENSION) {
@@ -51,7 +51,7 @@ export function getLLMConfig(): LLMConfig {
     }
     return {
       provider: 'openai',
-      url: 'https://api.openai.com',
+      url: process.env.OPENAI_API_BASE ?? 'https://api.openai.com',
       chatModel: process.env.OPENAI_CHAT_MODEL ?? 'gpt-4o-mini',
       embeddingModel: process.env.OPENAI_EMBEDDING_MODEL ?? 'text-embedding-ada-002',
       stopWords: [],

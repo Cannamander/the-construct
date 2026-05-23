@@ -1,4 +1,3 @@
-import clsx from 'clsx';
 import { Doc, Id } from '../../convex/_generated/dataModel';
 import { useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
@@ -6,6 +5,8 @@ import { MessageInput } from './MessageInput';
 import { Player } from '../../convex/aiTown/player';
 import { Conversation } from '../../convex/aiTown/conversation';
 import { useEffect, useRef } from 'react';
+
+const mono = '"Share Tech Mono", "Courier New", monospace';
 
 export function Messages({
   worldId,
@@ -30,21 +31,23 @@ export function Messages({
     worldId,
     conversationId: conversation.doc.id,
   });
+
   let currentlyTyping = conversation.kind === 'active' ? conversation.doc.isTyping : undefined;
   if (messages !== undefined && currentlyTyping) {
     if (messages.find((m) => m.messageUuid === currentlyTyping!.messageUuid)) {
       currentlyTyping = undefined;
     }
   }
+
   const currentlyTypingName =
     currentlyTyping &&
     descriptions?.playerDescriptions.find((p) => p.playerId === currentlyTyping?.playerId)?.name;
 
   const scrollView = scrollViewRef.current;
   const isScrolledToBottom = useRef(false);
+
   useEffect(() => {
     if (!scrollView) return undefined;
-
     const onScroll = () => {
       isScrolledToBottom.current = !!(
         scrollView && scrollView.scrollHeight - scrollView.scrollTop - 50 <= scrollView.clientHeight
@@ -53,113 +56,180 @@ export function Messages({
     scrollView.addEventListener('scroll', onScroll);
     return () => scrollView.removeEventListener('scroll', onScroll);
   }, [scrollView]);
+
   useEffect(() => {
     if (isScrolledToBottom.current) {
-      scrollViewRef.current?.scrollTo({
-        top: scrollViewRef.current.scrollHeight,
-        behavior: 'smooth',
-      });
+      scrollViewRef.current?.scrollTo({ top: scrollViewRef.current.scrollHeight, behavior: 'smooth' });
     }
   }, [messages, currentlyTyping]);
 
-  if (messages === undefined) {
-    return null;
-  }
-  if (messages.length === 0 && !inConversationWithMe) {
-    return null;
-  }
+  if (messages === undefined) return null;
+  if (messages.length === 0 && !inConversationWithMe) return null;
+
   const messageNodes: { time: number; node: React.ReactNode }[] = messages.map((m) => {
-    const node = (
-      <div key={`text-${m._id}`} className="leading-tight mb-6">
-        <div className="flex gap-4">
-          <span className="uppercase flex-grow">{m.authorName}</span>
-          <time dateTime={m._creationTime.toString()}>
-            {new Date(m._creationTime).toLocaleString()}
-          </time>
+    const isHuman = m.author === humanPlayerId;
+    return {
+      time: m._creationTime,
+      node: (
+        <div key={`msg-${m._id}`} style={{ marginBottom: 12 }}>
+          {/* Message header */}
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            marginBottom: 4,
+            fontSize: '0.55rem',
+            letterSpacing: '0.15em',
+          }}>
+            <span style={{ color: isHuman ? '#ff6b9d' : '#00ffb4' }}>
+              {isHuman ? '// OPERATOR' : `// ${m.authorName?.toUpperCase()}`}
+            </span>
+            <span style={{ color: 'rgba(160,240,224,0.25)' }}>
+              {new Date(m._creationTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          </div>
+          {/* Message bubble */}
+          <div style={{
+            padding: '8px 10px',
+            background: isHuman ? 'rgba(255,107,157,0.06)' : 'rgba(0,255,180,0.05)',
+            border: `1px solid ${isHuman ? 'rgba(255,107,157,0.2)' : 'rgba(0,255,180,0.15)'}`,
+            fontSize: '0.7rem',
+            lineHeight: 1.7,
+            color: isHuman ? 'rgba(255,107,157,0.9)' : 'rgba(160,240,224,0.85)',
+            letterSpacing: '0.04em',
+            borderLeft: `3px solid ${isHuman ? '#ff6b9d' : '#00ffb4'}`,
+          }}>
+            {m.text}
+          </div>
         </div>
-        <div className={clsx('bubble', m.author === humanPlayerId && 'bubble-mine')}>
-          <p className="bg-white -mx-3 -my-1">{m.text}</p>
-        </div>
-      </div>
-    );
-    return { node, time: m._creationTime };
+      ),
+    };
   });
+
   const lastMessageTs = messages.map((m) => m._creationTime).reduce((a, b) => Math.max(a, b), 0);
 
   const membershipNodes: typeof messageNodes = [];
   if (conversation.kind === 'active') {
     for (const [playerId, m] of conversation.doc.participants) {
-      const playerName = descriptions?.playerDescriptions.find((p) => p.playerId === playerId)
-        ?.name;
+      const playerName = descriptions?.playerDescriptions.find((p) => p.playerId === playerId)?.name;
       let started;
-      if (m.status.kind === 'participating') {
-        started = m.status.started;
-      }
+      if (m.status.kind === 'participating') started = m.status.started;
       if (started) {
         membershipNodes.push({
+          time: started,
           node: (
-            <div key={`joined-${playerId}`} className="leading-tight mb-6">
-              <p className="text-brown-700 text-center">{playerName} joined the conversation.</p>
+            <div key={`joined-${playerId}`} style={{
+              textAlign: 'center',
+              fontSize: '0.55rem',
+              letterSpacing: '0.2em',
+              color: 'rgba(0,255,180,0.3)',
+              marginBottom: 8,
+              padding: '4px 0',
+              borderTop: '1px solid rgba(0,255,180,0.08)',
+              borderBottom: '1px solid rgba(0,255,180,0.08)',
+            }}>
+              ▶ {playerName?.toUpperCase()} CONNECTED
             </div>
           ),
-          time: started,
         });
       }
     }
   } else {
     for (const playerId of conversation.doc.participants) {
-      const playerName = descriptions?.playerDescriptions.find((p) => p.playerId === playerId)
-        ?.name;
-      const started = conversation.doc.created;
+      const playerName = descriptions?.playerDescriptions.find((p) => p.playerId === playerId)?.name;
       membershipNodes.push({
+        time: conversation.doc.created,
         node: (
-          <div key={`joined-${playerId}`} className="leading-tight mb-6">
-            <p className="text-brown-700 text-center">{playerName} joined the conversation.</p>
+          <div key={`joined-${playerId}`} style={{
+            textAlign: 'center',
+            fontSize: '0.55rem',
+            letterSpacing: '0.2em',
+            color: 'rgba(0,255,180,0.3)',
+            marginBottom: 8,
+            padding: '4px 0',
+            borderTop: '1px solid rgba(0,255,180,0.08)',
+            borderBottom: '1px solid rgba(0,255,180,0.08)',
+          }}>
+            ▶ {playerName?.toUpperCase()} CONNECTED
           </div>
         ),
-        time: started,
       });
-      const ended = conversation.doc.ended;
       membershipNodes.push({
+        time: Math.max(lastMessageTs + 1, conversation.doc.ended),
         node: (
-          <div key={`left-${playerId}`} className="leading-tight mb-6">
-            <p className="text-brown-700 text-center">{playerName} left the conversation.</p>
+          <div key={`left-${playerId}`} style={{
+            textAlign: 'center',
+            fontSize: '0.55rem',
+            letterSpacing: '0.2em',
+            color: 'rgba(255,107,157,0.3)',
+            marginBottom: 8,
+            padding: '4px 0',
+            borderTop: '1px solid rgba(255,107,157,0.08)',
+            borderBottom: '1px solid rgba(255,107,157,0.08)',
+          }}>
+            ✕ {playerName?.toUpperCase()} DISCONNECTED
           </div>
         ),
-        // Always sort all "left" messages after the last message.
-        // TODO: We can remove this once we want to support more than two participants per conversation.
-        time: Math.max(lastMessageTs + 1, ended),
       });
     }
   }
+
   const nodes = [...messageNodes, ...membershipNodes];
   nodes.sort((a, b) => a.time - b.time);
+
   return (
-    <div className="chats text-base sm:text-sm">
-      <div className="bg-brown-200 text-black p-2">
-        {nodes.length > 0 && nodes.map((n) => n.node)}
+    <div style={{ marginTop: 16, fontFamily: mono }}>
+      {/* Session header */}
+      <div style={{
+        fontSize: '0.55rem',
+        letterSpacing: '0.25em',
+        color: 'rgba(0,255,180,0.3)',
+        marginBottom: 10,
+        paddingBottom: 6,
+        borderBottom: '1px solid rgba(0,255,180,0.1)',
+      }}>
+        {conversation.kind === 'active' ? 'LIVE TRANSMISSION' : 'ARCHIVED TRANSMISSION'}
+      </div>
+
+      {/* Messages */}
+      <div>
+        {nodes.map((n) => n.node)}
+
+        {/* Typing indicator */}
         {currentlyTyping && currentlyTyping.playerId !== humanPlayerId && (
-          <div key="typing" className="leading-tight mb-6">
-            <div className="flex gap-4">
-              <span className="uppercase flex-grow">{currentlyTypingName}</span>
-              <time dateTime={currentlyTyping.since.toString()}>
-                {new Date(currentlyTyping.since).toLocaleString()}
-              </time>
+          <div style={{ marginBottom: 12 }}>
+            <div style={{
+              fontSize: '0.55rem',
+              letterSpacing: '0.15em',
+              color: '#00ffb4',
+              marginBottom: 4,
+            }}>
+              // {currentlyTypingName?.toUpperCase()}
             </div>
-            <div className={clsx('bubble')}>
-              <p className="bg-white -mx-3 -my-1">
-                <i>typing...</i>
-              </p>
+            <div style={{
+              padding: '8px 10px',
+              background: 'rgba(0,255,180,0.03)',
+              border: '1px solid rgba(0,255,180,0.1)',
+              borderLeft: '3px solid rgba(0,255,180,0.4)',
+              fontSize: '0.7rem',
+              color: 'rgba(0,255,180,0.4)',
+              letterSpacing: '0.1em',
+              fontStyle: 'italic',
+            }}>
+              transmitting...
             </div>
           </div>
         )}
+
+        {/* Message input */}
         {humanPlayer && inConversationWithMe && conversation.kind === 'active' && (
-          <MessageInput
-            worldId={worldId}
-            engineId={engineId}
-            conversation={conversation.doc}
-            humanPlayer={humanPlayer}
-          />
+          <div style={{ marginTop: 12 }}>
+            <MessageInput
+              worldId={worldId}
+              engineId={engineId}
+              conversation={conversation.doc}
+              humanPlayer={humanPlayer}
+            />
+          </div>
         )}
       </div>
     </div>

@@ -1,7 +1,6 @@
 import { useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { Id } from '../../convex/_generated/dataModel';
-import closeImg from '../../assets/close.svg';
 import { SelectElement } from './Player';
 import { Messages } from './Messages';
 import { toastOnError } from '../toasts';
@@ -9,6 +8,52 @@ import { useSendInput } from '../hooks/sendInput';
 import { Player } from '../../convex/aiTown/player';
 import { GameId } from '../../convex/aiTown/ids';
 import { ServerGame } from '../hooks/serverGame';
+
+const mono = '"Share Tech Mono", "Courier New", monospace';
+
+const CyberButton = ({
+  onClick,
+  children,
+  disabled,
+  color = '#00ffb4',
+}: {
+  onClick?: () => void;
+  children: React.ReactNode;
+  disabled?: boolean;
+  color?: string;
+}) => (
+  <button
+    onClick={onClick}
+    disabled={disabled}
+    style={{
+      width: '100%',
+      padding: '8px 12px',
+      background: 'transparent',
+      border: `1px solid ${disabled ? 'rgba(0,255,180,0.2)' : color}`,
+      color: disabled ? 'rgba(0,255,180,0.3)' : color,
+      fontFamily: mono,
+      fontSize: '0.65rem',
+      letterSpacing: '0.2em',
+      cursor: disabled ? 'not-allowed' : 'pointer',
+      textTransform: 'uppercase' as const,
+      marginTop: 8,
+      transition: 'all 0.15s',
+      boxShadow: disabled ? 'none' : `0 0 10px ${color}22`,
+    }}
+    onMouseEnter={(e) => {
+      if (!disabled) {
+        (e.target as HTMLButtonElement).style.background = `${color}18`;
+        (e.target as HTMLButtonElement).style.boxShadow = `0 0 20px ${color}44`;
+      }
+    }}
+    onMouseLeave={(e) => {
+      (e.target as HTMLButtonElement).style.background = 'transparent';
+      (e.target as HTMLButtonElement).style.boxShadow = disabled ? 'none' : `0 0 10px ${color}22`;
+    }}
+  >
+    {children}
+  </button>
+);
 
 export default function PlayerDetails({
   worldId,
@@ -30,7 +75,7 @@ export default function PlayerDetails({
   const players = [...game.world.players.values()];
   const humanPlayer = players.find((p) => p.human === humanTokenIdentifier);
   const humanConversation = humanPlayer ? game.world.playerConversation(humanPlayer) : undefined;
-  // Always select the other player if we're in a conversation with them.
+
   if (humanPlayer && humanConversation) {
     const otherPlayerIds = [...humanConversation.participants.keys()].filter(
       (p) => p !== humanPlayer.id,
@@ -53,16 +98,9 @@ export default function PlayerDetails({
   const rejectInvite = useSendInput(engineId, 'rejectInvite');
   const leaveConversation = useSendInput(engineId, 'leaveConversation');
 
-  if (!playerId) {
-    return (
-      <div className="h-full text-xl flex text-center items-center p-4">
-        Click on an agent on the map to see chat history.
-      </div>
-    );
-  }
-  if (!player) {
-    return null;
-  }
+  if (!playerId) return null;
+  if (!player) return null;
+
   const isMe = humanPlayer && player.id === humanPlayer.id;
   const canInvite = !isMe && !playerConversation && humanPlayer && !humanConversation;
   const sameConversation =
@@ -88,151 +126,148 @@ export default function PlayerDetails({
     humanStatus?.kind === 'participating';
 
   const onStartConversation = async () => {
-    if (!humanPlayer || !playerId) {
-      return;
-    }
-    console.log(`Starting conversation`);
+    if (!humanPlayer || !playerId) return;
     await toastOnError(startConversation({ playerId: humanPlayer.id, invitee: playerId }));
   };
   const onAcceptInvite = async () => {
-    if (!humanPlayer || !humanConversation || !playerId) {
-      return;
-    }
-    await toastOnError(
-      acceptInvite({
-        playerId: humanPlayer.id,
-        conversationId: humanConversation.id,
-      }),
-    );
+    if (!humanPlayer || !humanConversation || !playerId) return;
+    await toastOnError(acceptInvite({ playerId: humanPlayer.id, conversationId: humanConversation.id }));
   };
   const onRejectInvite = async () => {
-    if (!humanPlayer || !humanConversation) {
-      return;
-    }
-    await toastOnError(
-      rejectInvite({
-        playerId: humanPlayer.id,
-        conversationId: humanConversation.id,
-      }),
-    );
+    if (!humanPlayer || !humanConversation) return;
+    await toastOnError(rejectInvite({ playerId: humanPlayer.id, conversationId: humanConversation.id }));
   };
   const onLeaveConversation = async () => {
-    if (!humanPlayer || !inConversationWithMe || !humanConversation) {
-      return;
-    }
-    await toastOnError(
-      leaveConversation({
-        playerId: humanPlayer.id,
-        conversationId: humanConversation.id,
-      }),
-    );
+    if (!humanPlayer || !inConversationWithMe || !humanConversation) return;
+    await toastOnError(leaveConversation({ playerId: humanPlayer.id, conversationId: humanConversation.id }));
   };
-  // const pendingSuffix = (inputName: string) =>
-  //   [...inflightInputs.values()].find((i) => i.name === inputName) ? ' opacity-50' : '';
 
-  const pendingSuffix = (s: string) => '';
   return (
-    <>
-      <div className="flex gap-4">
-        <div className="box w-3/4 sm:w-full mr-auto">
-          <h2 className="bg-brown-700 p-2 font-display text-2xl sm:text-4xl tracking-wider shadow-solid text-center">
-            {playerDescription?.name}
-          </h2>
-        </div>
-        <a
-          className="button text-white shadow-solid text-2xl cursor-pointer pointer-events-auto"
-          onClick={() => setSelectedElement(undefined)}
-        >
-          <h2 className="h-full bg-clay-700">
-            <img className="w-4 h-4 sm:w-5 sm:h-5" src={closeImg} />
-          </h2>
-        </a>
-      </div>
-      {canInvite && (
-        <a
-          className={
-            'mt-6 button text-white shadow-solid text-xl cursor-pointer pointer-events-auto' +
-            pendingSuffix('startConversation')
-          }
-          onClick={onStartConversation}
-        >
-          <div className="h-full bg-clay-700 text-center">
-            <span>Start conversation</span>
+    <div style={{ padding: '12px 16px', fontFamily: mono, color: '#a0f0e0' }}>
+
+      {/* Agent header */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 12,
+        paddingBottom: 12,
+        borderBottom: '1px solid rgba(0,255,180,0.15)',
+      }}>
+        <div>
+          <div style={{ fontSize: '0.55rem', letterSpacing: '0.25em', color: 'rgba(0,255,180,0.4)', marginBottom: 4 }}>
+            AGENT ID
           </div>
-        </a>
+          <div style={{ fontSize: '1rem', letterSpacing: '0.15em', color: '#00ffb4', textShadow: '0 0 10px rgba(0,255,180,0.3)' }}>
+            {playerDescription?.name ?? '???'}
+          </div>
+        </div>
+        <button
+          onClick={() => setSelectedElement(undefined)}
+          style={{
+            background: 'transparent',
+            border: '1px solid rgba(0,255,180,0.3)',
+            color: 'rgba(0,255,180,0.5)',
+            width: 28,
+            height: 28,
+            cursor: 'pointer',
+            fontFamily: mono,
+            fontSize: '0.8rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          ✕
+        </button>
+      </div>
+
+      {/* Action buttons */}
+      {canInvite && (
+        <CyberButton onClick={onStartConversation} color="#00ffb4">
+          ▶ INITIATE CONTACT
+        </CyberButton>
       )}
       {waitingForAccept && (
-        <a className="mt-6 button text-white shadow-solid text-xl cursor-pointer pointer-events-auto opacity-50">
-          <div className="h-full bg-clay-700 text-center">
-            <span>Waiting for accept...</span>
-          </div>
-        </a>
+        <CyberButton disabled color="#00ffb4">
+          ◌ AWAITING RESPONSE...
+        </CyberButton>
       )}
       {waitingForNearby && (
-        <a className="mt-6 button text-white shadow-solid text-xl cursor-pointer pointer-events-auto opacity-50">
-          <div className="h-full bg-clay-700 text-center">
-            <span>Walking over...</span>
-          </div>
-        </a>
+        <CyberButton disabled color="#00ffb4">
+          ◌ ROUTING TO AGENT...
+        </CyberButton>
       )}
       {inConversationWithMe && (
-        <a
-          className={
-            'mt-6 button text-white shadow-solid text-xl cursor-pointer pointer-events-auto' +
-            pendingSuffix('leaveConversation')
-          }
-          onClick={onLeaveConversation}
-        >
-          <div className="h-full bg-clay-700 text-center">
-            <span>Leave conversation</span>
-          </div>
-        </a>
+        <CyberButton onClick={onLeaveConversation} color="#ff6b9d">
+          ✕ TERMINATE SESSION
+        </CyberButton>
       )}
       {haveInvite && (
         <>
-          <a
-            className={
-              'mt-6 button text-white shadow-solid text-xl cursor-pointer pointer-events-auto' +
-              pendingSuffix('acceptInvite')
-            }
-            onClick={onAcceptInvite}
-          >
-            <div className="h-full bg-clay-700 text-center">
-              <span>Accept</span>
-            </div>
-          </a>
-          <a
-            className={
-              'mt-6 button text-white shadow-solid text-xl cursor-pointer pointer-events-auto' +
-              pendingSuffix('rejectInvite')
-            }
-            onClick={onRejectInvite}
-          >
-            <div className="h-full bg-clay-700 text-center">
-              <span>Reject</span>
-            </div>
-          </a>
+          <CyberButton onClick={onAcceptInvite} color="#00ffb4">▶ ACCEPT INCOMING</CyberButton>
+          <CyberButton onClick={onRejectInvite} color="#ff6b9d">✕ REJECT</CyberButton>
         </>
       )}
+
+      {/* Activity status */}
       {!playerConversation && player.activity && player.activity.until > Date.now() && (
-        <div className="box flex-grow mt-6">
-          <h2 className="bg-brown-700 text-base sm:text-lg text-center">
-            {player.activity.description}
-          </h2>
+        <div style={{
+          marginTop: 12,
+          padding: '8px 10px',
+          border: '1px solid rgba(0,255,180,0.15)',
+          fontSize: '0.65rem',
+          letterSpacing: '0.1em',
+          color: 'rgba(0,255,180,0.5)',
+        }}>
+          <span style={{ color: 'rgba(0,255,180,0.3)', marginRight: 8 }}>STATUS //</span>
+          {player.activity.description}
         </div>
       )}
-      <div className="desc my-6">
-        <p className="leading-tight -m-4 bg-brown-700 text-base sm:text-sm">
-          {!isMe && playerDescription?.description}
-          {isMe && <i>This is you!</i>}
-          {!isMe && inConversationWithMe && (
-            <>
-              <br />
-              <br />(<i>Conversing with you!</i>)
-            </>
-          )}
-        </p>
-      </div>
+
+      {/* Agent description */}
+      {!isMe && playerDescription?.description && (
+        <div style={{
+          marginTop: 12,
+          padding: '10px',
+          background: 'rgba(0,255,180,0.03)',
+          border: '1px solid rgba(0,255,180,0.08)',
+          fontSize: '0.65rem',
+          lineHeight: 1.8,
+          color: 'rgba(160,240,224,0.7)',
+          letterSpacing: '0.05em',
+        }}>
+          <div style={{ fontSize: '0.55rem', letterSpacing: '0.25em', color: 'rgba(0,255,180,0.3)', marginBottom: 6 }}>
+            AGENT PROFILE
+          </div>
+          {playerDescription.description}
+        </div>
+      )}
+      {isMe && (
+        <div style={{
+          marginTop: 12,
+          padding: '8px 10px',
+          border: '1px solid rgba(255,107,157,0.2)',
+          fontSize: '0.65rem',
+          color: '#ff6b9d',
+          letterSpacing: '0.1em',
+        }}>
+          // THIS IS YOUR OPERATOR
+        </div>
+      )}
+      {inConversationWithMe && (
+        <div style={{
+          marginTop: 6,
+          padding: '6px 10px',
+          fontSize: '0.6rem',
+          color: 'rgba(0,255,180,0.4)',
+          letterSpacing: '0.1em',
+        }}>
+          ● LIVE SESSION ACTIVE
+        </div>
+      )}
+
+      {/* Messages */}
       {!isMe && playerConversation && playerStatus?.kind === 'participating' && (
         <Messages
           worldId={worldId}
@@ -245,8 +280,16 @@ export default function PlayerDetails({
       )}
       {!playerConversation && previousConversation && (
         <>
-          <div className="box flex-grow">
-            <h2 className="bg-brown-700 text-lg text-center">Previous conversation</h2>
+          <div style={{
+            marginTop: 16,
+            paddingTop: 12,
+            borderTop: '1px solid rgba(0,255,180,0.1)',
+            fontSize: '0.55rem',
+            letterSpacing: '0.25em',
+            color: 'rgba(0,255,180,0.3)',
+            marginBottom: 8,
+          }}>
+            ARCHIVED SESSION
           </div>
           <Messages
             worldId={worldId}
@@ -258,6 +301,6 @@ export default function PlayerDetails({
           />
         </>
       )}
-    </>
+    </div>
   );
 }
