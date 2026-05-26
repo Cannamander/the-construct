@@ -177,7 +177,7 @@ export function Messages({
   nodes.sort((a, b) => a.time - b.time);
 
   return (
-    <div style={{ marginTop: 16, fontFamily: mono }}>
+    <div style={{ marginTop: 16, fontFamily: mono, display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
       {/* Session header */}
       <div style={{
         fontSize: '0.55rem',
@@ -191,7 +191,7 @@ export function Messages({
       </div>
 
       {/* Messages */}
-      <div>
+      <div ref={scrollViewRef} style={{ overflowY: 'auto', flex: 1, paddingRight: 4 }}>
         {nodes.map((n) => n.node)}
 
         {/* Typing indicator */}

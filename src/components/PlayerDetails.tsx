@@ -143,7 +143,7 @@ export default function PlayerDetails({
   };
 
   return (
-    <div style={{ padding: '12px 16px', fontFamily: mono, color: '#a0f0e0' }}>
+    <div style={{ padding: '12px 16px', fontFamily: mono, color: '#a0f0e0', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
 
       {/* Agent header */}
       <div style={{

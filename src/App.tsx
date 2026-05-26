@@ -161,7 +161,9 @@ export default function Home() {
         flex: 1,
         display: 'flex',
         flexDirection: 'column',
-        paddingBottom: 44,
+        minHeight: 0,
+        overflow: 'hidden',
+        paddingBottom: 0,
       }}>
         <Game />
       </div>

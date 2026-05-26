@@ -2,9 +2,9 @@
 
 const OPENAI_EMBEDDING_DIMENSION = 1536;
 const TOGETHER_EMBEDDING_DIMENSION = 768;
-const OLLAMA_EMBEDDING_DIMENSION = 1024;
+const OLLAMA_EMBEDDING_DIMENSION = 768;
 
-export const EMBEDDING_DIMENSION: number = OPENAI_EMBEDDING_DIMENSION;
+export const EMBEDDING_DIMENSION: number = OLLAMA_EMBEDDING_DIMENSION;
 
 export function detectMismatchedLLMProvider() {
   switch (EMBEDDING_DIMENSION) {
@@ -15,13 +15,8 @@ export function detectMismatchedLLMProvider() {
         );
       }
       break;
-    case TOGETHER_EMBEDDING_DIMENSION:
-      if (!process.env.TOGETHER_API_KEY) {
-        throw new Error(
-          "Are you trying to use Together.ai? If so, run: npx convex env set TOGETHER_API_KEY 'your-key'",
-        );
-      }
-      break;
+      case TOGETHER_EMBEDDING_DIMENSION:
+        break;
     case OLLAMA_EMBEDDING_DIMENSION:
       break;
     default:
@@ -175,8 +170,9 @@ export async function chatCompletion(
       if (content === undefined) {
         throw new Error('Unexpected result from OpenAI: ' + JSON.stringify(json));
       }
-      console.log(content);
-      return content;
+      const cleaned = content.replace(/<\|start_header_id\|>.*?<\|end_header_id\|>\n*/gs, '').trim();
+      console.log(cleaned);
+      return cleaned;
     }
   });
 

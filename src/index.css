@@ -189,3 +189,18 @@ p[contenteditable='true']:empty::before {
 .shape-top-left-corner {
   clip-path: polygon(0 0, 100% 0, 0 100%);
 }
+
+/* Cyberpunk scrollbar */
+::-webkit-scrollbar {
+  width: 3px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(0,255,180,0.03);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0,255,180,0.2);
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0,255,180,0.4);
+}
