@@ -43,6 +43,13 @@ const gameStateDiff = v.object({
 });
 type GameStateDiff = Infer<typeof gameStateDiff>;
 
+// Pending directive shape passed into the Game instance
+export type PendingDirective = {
+  directiveId: string;
+  task: string;
+  priority: number;
+};
+
 export class Game extends AbstractGame {
   tickDuration = 16;
   stepDuration = 1000;
@@ -50,28 +57,25 @@ export class Game extends AbstractGame {
   maxInputsPerStep = 32;
 
   world: World;
-
   historicalLocations: Map<GameId<'players'>, HistoricalObject<Location>>;
-
   descriptionsModified: boolean;
   worldMap: WorldMap;
   playerDescriptions: Map<GameId<'players'>, PlayerDescription>;
   agentDescriptions: Map<GameId<'agents'>, AgentDescription>;
-
   pendingOperations: Array<{ name: string; args: any }> = [];
-
+  // Map of agentId -> highest priority pending directive for that agent
+  pendingDirectives: Map<string, PendingDirective>;
   numPathfinds: number;
 
   constructor(
     engine: Doc<'engines'>,
     public worldId: Id<'worlds'>,
     state: GameState,
+    pendingDirectivesArray: Array<{ directiveId: string; task: string; assignedTo: string; priority: number }>,
   ) {
     super(engine);
-
     this.world = new World(state.world);
     delete this.world.historicalLocations;
-
     this.descriptionsModified = false;
     this.worldMap = new WorldMap(state.worldMap);
     this.agentDescriptions = parseMap(state.agentDescriptions, AgentDescription, (a) => a.agentId);
@@ -80,9 +84,19 @@ export class Game extends AbstractGame {
       PlayerDescription,
       (p) => p.playerId,
     );
-
     this.historicalLocations = new Map();
-
+    // Build pendingDirectives map from array, keeping highest priority per agent
+    this.pendingDirectives = new Map();
+    for (const d of pendingDirectivesArray) {
+      const existing = this.pendingDirectives.get(d.assignedTo);
+      if (!existing || d.priority > existing.priority) {
+        this.pendingDirectives.set(d.assignedTo, {
+          directiveId: d.directiveId,
+          task: d.task,
+          priority: d.priority,
+        });
+      }
+    }
     this.numPathfinds = 0;
   }
 
@@ -118,10 +132,29 @@ export class Game extends AbstractGame {
     if (!worldMapDoc) {
       throw new Error(`No map found for world ${worldId}`);
     }
+
+    // Load pending directives and build a map of agentId -> highest priority directive
+    const allPendingDirectives = await db
+      .query('directives')
+      .withIndex('status', (q) => q.eq('status', 'pending'))
+      .collect();
+
+    const pendingDirectives = new Map<string, PendingDirective>();
+    for (const directive of allPendingDirectives) {
+      const agentName = directive.assignedTo.toUpperCase();
+      const existing = pendingDirectives.get(agentName);
+      if (!existing || directive.priority > existing.priority) {
+        pendingDirectives.set(agentName, {
+          directiveId: directive._id,
+          task: directive.task,
+          priority: directive.priority,
+        });
+      }
+    }
+
     // Discard the system fields and historicalLocations from the world state.
     const { _id, _creationTime, historicalLocations: _, ...world } = worldDoc;
     const playerDescriptions = playerDescriptionsDocs
-      // Discard player descriptions for players that no longer exist.
       .filter((d) => !!world.players.find((p) => p.id === d.playerId))
       .map(({ _id, _creationTime, worldId: _, ...doc }) => doc);
     const agentDescriptions = agentDescriptionsDocs
@@ -133,6 +166,7 @@ export class Game extends AbstractGame {
       worldId: _mapWorldId,
       ...worldMap
     } = worldMapDoc;
+
     return {
       engine,
       gameState: {
@@ -141,6 +175,7 @@ export class Game extends AbstractGame {
         agentDescriptions,
         worldMap,
       },
+
     };
   }
 
@@ -163,7 +198,6 @@ export class Game extends AbstractGame {
   }
 
   beginStep(_now: number) {
-    // Store the current location of all players in the history tracking buffer.
     this.historicalLocations.clear();
     for (const player of this.world.players.values()) {
       this.historicalLocations.set(
@@ -190,9 +224,6 @@ export class Game extends AbstractGame {
     for (const agent of this.world.agents.values()) {
       agent.tick(this, now);
     }
-
-    // Save each player's location into the history buffer at the end of
-    // each tick.
     for (const player of this.world.players.values()) {
       let historicalObject = this.historicalLocations.get(player.id);
       if (!historicalObject) {
@@ -232,7 +263,6 @@ export class Game extends AbstractGame {
       );
     }
     this.historicalLocations.clear();
-
     const result: GameStateDiff = {
       world: { ...this.world.serialize(), historicalLocations },
       agentOperations: this.pendingOperations,
@@ -253,7 +283,6 @@ export class Game extends AbstractGame {
       throw new Error(`No world found with id ${worldId}`);
     }
     const newWorld = diff.world;
-    // Archive newly deleted players, conversations, and agents.
     for (const player of existingWorld.players) {
       if (!newWorld.players.some((p) => p.id === player.id)) {
         await ctx.db.insert('archivedPlayers', { worldId, ...player });
@@ -296,10 +325,7 @@ export class Game extends AbstractGame {
         await ctx.db.insert('archivedAgents', { worldId, ...conversation });
       }
     }
-    // Update the world state.
     await ctx.db.replace(worldId, newWorld);
-
-    // Update the larger description tables if they changed.
     const { playerDescriptions, agentDescriptions, worldMap } = diff;
     if (playerDescriptions) {
       for (const description of playerDescriptions) {
@@ -340,7 +366,6 @@ export class Game extends AbstractGame {
         await ctx.db.insert('maps', { worldId, ...worldMap });
       }
     }
-    // Start the desired agent operations.
     for (const operation of diff.agentOperations) {
       await runAgentOperation(ctx, operation.name, operation.args);
     }

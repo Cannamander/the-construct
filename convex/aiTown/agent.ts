@@ -79,7 +79,12 @@ export class Agent {
     if (!conversation && !doingActivity && (!player.pathfinding || !recentlyAttemptedInvite)) {
       // Check for pending directives before doing normal behavior.
       // Directives from Hermes take priority over autonomous activity.
-      const pendingDirective = game.pendingDirectives?.get(this.id);
+      // Look up agent name from playerDescriptions (agent a:1 matches player p:0, etc.)
+      const agentIndex = parseInt(this.id.split(':')[1]);
+      const playerIndex = agentIndex - 1;
+      const playerId = `p:${playerIndex}` as GameId<'players'>;
+      const playerDesc = game.playerDescriptions.get(playerId);
+      const pendingDirective = playerDesc ? game.pendingDirectives?.get(playerDesc.name.toUpperCase()) : undefined;
       if (pendingDirective) {
         console.log(`Agent ${this.id} handling directive: "${pendingDirective.task}"`);
         this.startOperation(game, now, 'agentHandleDirective', {

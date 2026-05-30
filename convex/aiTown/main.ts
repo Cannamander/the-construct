@@ -98,8 +98,8 @@ export const runStep = internalAction({
         worldId: args.worldId,
         generationNumber: args.generationNumber,
       });
-      const game = new Game(engine, args.worldId, gameState);
-
+      
+      const game = new Game(engine, args.worldId, gameState, []);
       let now = Date.now();
       const deadline = now + args.maxDuration;
       while (now < deadline) {

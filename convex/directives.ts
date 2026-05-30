@@ -1,4 +1,4 @@
-import { httpAction, mutation, query, internalMutation } from './_generated/server';
+import { httpAction, mutation, query, internalMutation, internalQuery } from './_generated/server';
 import { internal } from './_generated/api';
 import { v } from 'convex/values';
 
@@ -72,5 +72,22 @@ export const markDirectiveComplete = internalMutation({
   args: { directiveId: v.id('directives'), result: v.string() },
   handler: async (ctx, args) => {
     await ctx.db.patch(args.directiveId, { status: 'completed', result: args.result });
+  },
+});
+
+export const loadPendingDirectives = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    const directives = await ctx.db
+      .query('directives')
+      .withIndex('status', (q) => q.eq('status', 'pending'))
+      .collect();
+    // Return as plain array — Convex can serialize this
+    return directives.map((d) => ({
+      directiveId: d._id as string,
+      task: d.task,
+      assignedTo: d.assignedTo.toUpperCase(),
+      priority: d.priority,
+    }));
   },
 });

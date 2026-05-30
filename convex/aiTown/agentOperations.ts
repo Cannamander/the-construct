@@ -192,12 +192,6 @@ export const agentHandleDirective = internalAction({
       directiveId: args.directiveId as any,
     });
 
-    // Generate a response to the directive using the agent's LLM
-    const { agentDescription } = await ctx.runQuery(internal.aiTown.agentDescription.agentDescriptionByAgentId, {
-      worldId: args.worldId,
-      agentId: args.agentId,
-    });
-
     const result = `[${args.agentId}] Directive received: "${args.task}". Acknowledged and processing.`;
 
     // Mark directive as completed with result
