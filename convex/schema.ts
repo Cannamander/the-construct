@@ -21,6 +21,39 @@ export default defineSchema({
     .index('conversationId', ['worldId', 'conversationId'])
     .index('messageUuid', ['conversationId', 'messageUuid']),
 
+  directives: defineTable({
+    from: v.string(),
+    task: v.string(),
+    assignedTo: v.string(),
+    status: v.union(
+      v.literal('pending'),
+      v.literal('in_progress'),
+      v.literal('completed'),
+      v.literal('failed'),
+    ),
+    result: v.optional(v.string()),
+    priority: v.number(),
+    createdAt: v.number(),
+  })
+    .index('status', ['status'])
+    .index('assignedTo', ['assignedTo', 'status']),
+
+  llmQueue: defineTable({
+    requestor: v.string(),
+    prompt: v.string(),
+    status: v.union(
+      v.literal('pending'),
+      v.literal('processing'),
+      v.literal('completed'),
+      v.literal('failed'),
+    ),
+    result: v.optional(v.string()),
+    priority: v.number(),
+    createdAt: v.number(),
+  })
+    .index('status', ['status'])
+    .index('priority', ['status', 'priority']),
+
   ...agentTables,
   ...aiTownTables,
   ...engineTables,
