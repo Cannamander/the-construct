@@ -71,11 +71,27 @@ export class Agent {
     if (doingActivity && (conversation || player.pathfinding)) {
       player.activity!.until = now;
     }
+
     // If we're not in a conversation, do something.
     // If we aren't doing an activity or moving, do something.
     // If we have been wandering but haven't thought about something to do for
     // a while, do something.
     if (!conversation && !doingActivity && (!player.pathfinding || !recentlyAttemptedInvite)) {
+      // Check for pending directives before doing normal behavior.
+      // Directives from Hermes take priority over autonomous activity.
+      const pendingDirective = game.pendingDirectives?.get(this.id);
+      if (pendingDirective) {
+        console.log(`Agent ${this.id} handling directive: "${pendingDirective.task}"`);
+        this.startOperation(game, now, 'agentHandleDirective', {
+          worldId: game.worldId,
+          playerId: this.playerId,
+          agentId: this.id,
+          directiveId: pendingDirective.directiveId,
+          task: pendingDirective.task,
+        });
+        return;
+      }
+
       this.startOperation(game, now, 'agentDoSomething', {
         worldId: game.worldId,
         player: player.serialize(),
@@ -297,6 +313,9 @@ export async function runAgentOperation(ctx: MutationCtx, operation: string, arg
       break;
     case 'agentDoSomething':
       reference = internal.aiTown.agentOperations.agentDoSomething;
+      break;
+    case 'agentHandleDirective':
+      reference = internal.aiTown.agentOperations.agentHandleDirective;
       break;
     default:
       throw new Error(`Unknown operation: ${operation}`);

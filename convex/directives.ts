@@ -60,3 +60,17 @@ export const getPendingForAgent = query({
       .collect();
   },
 });
+
+export const markDirectiveInProgress = internalMutation({
+  args: { directiveId: v.id('directives') },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.directiveId, { status: 'in_progress' });
+  },
+});
+
+export const markDirectiveComplete = internalMutation({
+  args: { directiveId: v.id('directives'), result: v.string() },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.directiveId, { status: 'completed', result: args.result });
+  },
+});

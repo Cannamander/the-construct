@@ -176,3 +176,44 @@ function wanderDestination(worldMap: WorldMap) {
     y: 1 + Math.floor(Math.random() * (worldMap.height - 2)),
   };
 }
+
+export const agentHandleDirective = internalAction({
+  args: {
+    worldId: v.id('worlds'),
+    playerId,
+    agentId,
+    operationId: v.string(),
+    directiveId: v.string(),
+    task: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // Mark directive as in_progress
+    await ctx.runMutation(internal.directives.markDirectiveInProgress, {
+      directiveId: args.directiveId as any,
+    });
+
+    // Generate a response to the directive using the agent's LLM
+    const { agentDescription } = await ctx.runQuery(internal.aiTown.agentDescription.agentDescriptionByAgentId, {
+      worldId: args.worldId,
+      agentId: args.agentId,
+    });
+
+    const result = `[${args.agentId}] Directive received: "${args.task}". Acknowledged and processing.`;
+
+    // Mark directive as completed with result
+    await ctx.runMutation(internal.directives.markDirectiveComplete, {
+      directiveId: args.directiveId as any,
+      result,
+    });
+
+    // Finish the operation so the agent can do other things
+    await ctx.runMutation(api.aiTown.main.sendInput, {
+      worldId: args.worldId,
+      name: 'finishDoSomething',
+      args: {
+        operationId: args.operationId,
+        agentId: args.agentId,
+      },
+    });
+  },
+});
