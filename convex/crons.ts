@@ -16,6 +16,7 @@ crons.interval(
 crons.interval('restart dead worlds', { seconds: 60 }, internal.world.restartDeadWorlds);
 
 crons.daily('vacuum old entries', { hourUTC: 4, minuteUTC: 20 }, internal.crons.vacuumOldEntries);
+crons.interval('process llm queue', { seconds: 2 }, internal.llmQueue.processNext);
 
 export default crons;
 
