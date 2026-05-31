@@ -14,7 +14,7 @@ tmux send-keys -t $SESSION "docker run --network host -v convex-data:/convex/dat
 
 # Pane 2 - Ollama
 tmux split-window -h -t $SESSION
-tmux send-keys -t $SESSION "OLLAMA_HOST=0.0.0.0:11434 OLLAMA_NUM_PARALLEL=2 ollama serve" Enter
+tmux send-keys -t $SESSION "OLLAMA_HOST=0.0.0.0:11434 OLLAMA_NUM_PARALLEL=6 ollama serve" Enter
 
 # Pane 3 - Vite frontend
 tmux split-window -v -t $SESSION

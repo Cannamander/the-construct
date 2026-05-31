@@ -127,7 +127,13 @@ export const processNext = internalAction({
     try {
       const messages = JSON.parse(entry.prompt) as LLMMessage[];
       console.log(`[llmQueue] Calling Ollama for entry ${entry._id}`);
-      const { content } = await chatCompletion({ messages, stream: false });
+      const timeoutMs = 120_000;
+      const { content } = await Promise.race([
+        chatCompletion({ messages, stream: false }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error(`Ollama timeout after ${timeoutMs}ms`)), timeoutMs)
+        ),
+      ]);
       const result = typeof content === 'string' ? content : await (content as any).readAll();
       console.log(`[llmQueue] Completed entry ${entry._id}: ${result.substring(0, 50)}`);
       await ctx.runMutation(internal.llmQueue.resolveEntry, {
